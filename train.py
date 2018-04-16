@@ -8,7 +8,8 @@ import torch.nn.utils
 
 
 def train_bptt(decoder, contexts, targets, visible_seed, hidden_seed,
-               optimizer, batch_size, bptt, cost_fn=nn.PairwiseDistance()):
+               optimizer, batch_size, bptt,
+               cost_fn=nn.PairwiseDistance(), clip_grad_norm=1.):
     """
     Train a nn.Module object using given optimizer and training data sequences,
     using backpropagation through time (bptt), <bptt> sequence steps per
@@ -67,7 +68,7 @@ def train_bptt(decoder, contexts, targets, visible_seed, hidden_seed,
         for counter in range(bptt):
             inputs = torch.stack([contexts[i][p]
                                   for i, p in zip(indices, positions)])
-            outputs, hiddens = decoder(visible, inputs, None, hiddens)
+            outputs, hiddens = decoder(visible, inputs, hiddens)
             predicted.append(outputs[0])
             visible = outputs.clone() # can implement teacher forcing here.
             actual.append(torch.stack([targets[i][p]
@@ -88,7 +89,7 @@ def train_bptt(decoder, contexts, targets, visible_seed, hidden_seed,
 
         loss = torch.mean(cost_fn(torch.cat(predicted), torch.cat(actual)))
         loss.backward()
-        torch.nn.utils.clip_grad_norm(decoder.parameters(), 1.)
+        torch.nn.utils.clip_grad_norm(decoder.parameters(), clip_grad_norm)
         optimizer.step()
         losses.append(loss.data[0])
         
